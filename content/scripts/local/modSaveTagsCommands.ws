@@ -1,17 +1,24 @@
 /***********************************************************************/
-/**  modSaveTags - komendy konsoli (klawisz "~").
+/**  modSaveTags - komendy do konsoli (klawisz "~" w grze).
 /**
-/**    tagsList()                      lista zapisow: indeks, typ, plik, tag
-/**    tagsSet(3, 'Kamil')             ustaw tag zapisowi o indeksie 3
-/**    tagsSetFile('53db9', 'Kamil')   ustaw tag po fragmencie nazwy pliku
-/**    tagsClear(3)                    usun tag z zapisu o indeksie 3
-/**    tagsClearAll()                  usun wszystkie tagi
+/**  Mozna ich uzywac, gdy nie chce sie klikac w menu pauzy, np. zeby
+/**  ustawic etykiete dla wszystkich zapisow naraz.
+/**
+/**  KOMENDY:
+/**    tagsList()                      pokaz zapisy: numer, typ, plik, etykieta
+/**    tagsSet(3, 'Kamil')             ustaw etykiete zapisowi o numerze 3
+/**    tagsSetFile('53db9', 'Kamil')   ustaw etykiete po fragmencie nazwy pliku
+/**    tagsClear(3)                    usun etykiete z zapisu o numerze 3
+/**    tagsClearAll()                  usun wszystkie etykiety
 /**    tagsHelp()                      wypisz te komendy na ekranie
 /**
-/**  Funkcje bazowe sa w modSaveTags.ws.
+/**  Numery zapisow ("indeks") pochodza z tagsList(). Funkcje, ktore
+/**  wykonuja cala prace, sa w pliku modSaveTags.ws.
 /***********************************************************************/
 
 
+// Wypisuje liste zapisow: #indeks [typ] nazwa pliku -> etykieta.
+// Uzyj tego najpierw, zeby poznac numery potrzebne dla tagsSet/tagsClear.
 exec function tagsList()
 {
 	var saves : array< SSavegameInfo >;
@@ -32,6 +39,7 @@ exec function tagsList()
 	}
 }
 
+// Ustawia etykiete zapisowi o podanym numerze z tagsList().
 exec function tagsSet(index : int, owner : string)
 {
 	var saves : array< SSavegameInfo >;
@@ -48,6 +56,8 @@ exec function tagsSet(index : int, owner : string)
 	SaveTags_Say("Zapis #" + IntToString(index) + " = '" + owner + "'. Otworz 'Wczytaj gre', aby zobaczyc.");
 }
 
+// Ustawia etykiete wszystkim zapisom, ktorych nazwa pliku zawiera "part".
+// Wygodne do otagowania kilku zapisow naraz - wystarczy fragment nazwy.
 exec function tagsSetFile(part : string, owner : string)
 {
 	var saves : array< SSavegameInfo >;
@@ -72,10 +82,11 @@ exec function tagsSetFile(part : string, owner : string)
 	}
 	else
 	{
-		SaveTags_Say("Otagnieto " + IntToString(found) + " zapis(y) jako '" + owner + "'.");
+		SaveTags_Say("Otagowano " + IntToString(found) + " zapis(y) jako '" + owner + "'.");
 	}
 }
 
+// Usuwa etykiete z zapisu o podanym numerze z tagsList().
 exec function tagsClear(index : int)
 {
 	var saves : array< SSavegameInfo >;
@@ -92,6 +103,7 @@ exec function tagsClear(index : int)
 	SaveTags_Say("Tag usuniety z zapisu #" + IntToString(index) + ".");
 }
 
+// Usuwa etykiety ze wszystkich widocznych zapisow.
 exec function tagsClearAll()
 {
 	var saves : array< SSavegameInfo >;
@@ -107,6 +119,7 @@ exec function tagsClearAll()
 	SaveTags_Say("Usunieto wszystkie tagi (" + IntToString(saves.Size()) + " zapisow).");
 }
 
+// Krotka pomoc na ekranie.
 exec function tagsHelp()
 {
 	SaveTags_Say("modSaveTags: tagsList() | tagsSet(indeks, 'Kamil') | tagsSetFile('53db9','Kamil') | tagsClear(indeks) | tagsClearAll()");
