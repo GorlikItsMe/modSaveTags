@@ -1,63 +1,63 @@
 /***********************************************************************/
-/**  modSaveTags  (Wiedzmin 3 next-gen / 5.0)
+/**  modSaveTags  (The Witcher 3 next-gen / 5.0)
 /**
-/**  PO CO TEN MOD?
-/**  Gdy dwie osoby graja na jednym komputerze, zapisy wygladaja
-/**  identycznie i trudno rozpoznac, ktory jest czyj. Ten mod pozwala
-/**  dopisac do zapisu wlasna etykiete i zobaczyc ja na liscie
-/**  "Wczytaj gre", np.:  [Kamil] Bestia z Bialego Sadu - wtorek, ...
+/**  WHY THIS MOD?
+/**  When two people play on the same PC, saves look identical and it is
+/**  hard to tell whose is whose. This mod lets you attach your own tag
+/**  to a save and see it on the "Load game" list, e.g.:
+/**      [Kamil] Beast of the White Orchard - Tuesday, ...
 /**
-/**  JAK TO DZIALA (w skrocie)?
-/**  Gra nie pozwala zmienic nazwy zapisu, ale pozwala podmienic
-/**  kawalek kodu, ktory buduje wiersze listy zapisow. My doklejamy
-/**  tylko etykiete na poczatku. Sama etykieta jest trzymana w pliku
-/**  ustawien gry, pod kluczem rownym nazwie pliku zapisu.
+/**  HOW DOES IT WORK (in short)?
+/**  The game does not allow renaming a save, but it does allow replacing
+/**  the piece of code that builds the save-list rows. We simply prepend
+/**  the tag. The tag itself is stored in the game settings file, under a
+/**  key equal to the save's file name.
 /**
-/**  PROBLEM: NADPISYWANIE ZAPISU
-/**  Kiedy nadpiszesz zapis, gra tworzy NOWY plik (zmienia sie data
-/**  i godzina w nazwie) i usuwa stary. Etykieta zostalaby wiec przy
-/**  starym pliku. Dlatego mod:
-/**    1) PRZED zapisem pamieta etykiete nadpisywanego zapisu,
-/**    2) PO zapisie, gdy gra pokaze juz nowy plik, przenosi etykiete.
-/**  Robi to funkcja SaveTags_TryMigrate().
+/**  THE PROBLEM: OVERWRITING A SAVE
+/**  When you overwrite a save, the game creates a NEW file (the date and
+/**  time in the name change) and removes the old one. The tag would then
+/**  stay attached to the old file. So the mod:
+/**    1) BEFORE saving: remembers the tag of the save being overwritten,
+/**    2) AFTER saving: once the game shows the new file, moves the tag.
+/**  This is done by SaveTags_TryMigrate().
 /**
-/**  PLIKI MODA (content/scripts/local/):
-/**    modSaveTags.ws          - ten plik: pamiec etykiet + lista zapisow
-/**    modSaveTagsHooks.ws     - podsluchuje moment zapisu i wczytania
-/**    modSaveTagsMenu.ws      - dodatkowy wpis w menu pauzy (zmiana etykiety)
-/**    modSaveTagsCommands.ws  - komendy do konsoli (~)
+/**  MOD FILES (content/scripts/local/):
+/**    modSaveTags.ws          - this file: tag storage + save list
+/**    modSaveTagsHooks.ws     - hooks the save and load moments
+/**    modSaveTagsMenu.ws      - extra pause-menu entry (change the tag)
+/**    modSaveTagsCommands.ws  - console commands (~)
 /**
-/**  KOMENDY W KONSOLI (~):
-/**    tagsList()                      wyswietl zapisy: numer, typ, plik, etykieta
-/**    tagsSet(3, 'Kamil')             ustaw etykiete zapisowi nr 3
-/**    tagsSetFile('53db9', 'Kamil')   ustaw etykiete po fragmencie nazwy pliku
-/**    tagsClear(3)                    usun etykiete z zapisu nr 3
-/**    tagsClearAll()                  usun wszystkie etykiety
-/**    tagsHelp()                      wyswietl pomoc na ekranie
+/**  CONSOLE COMMANDS (~):
+/**    tagsList()                      show saves: number, type, file, tag
+/**    tagsSet(3, 'Kamil')             set tag on save number 3
+/**    tagsSetFile('53db9', 'Kamil')   set tag by a part of the file name
+/**    tagsClear(3)                    remove tag from save number 3
+/**    tagsClearAll()                  remove all tags
+/**    tagsHelp()                      print these commands on screen
 /**
-/**  UWAGA: przenoszenie etykiety dziala dla zapisow z menu "Zapisz gre".
-/**  Szybki zapis (F5) i autozapis robi gra po swojemu - tam ustaw
-/**  etykiete ponownie.
+/**  NOTE: moving the tag works for saves made from the "Save game" menu.
+/**  Quicksave (F5) and autosave are handled natively by the game - set
+/**  the tag again for those.
 /***********************************************************************/
 
 
 // =========================================================================
-//  CZESC 1: PAMIEC ETYKIET
-//  Trzymamy pary "nazwa pliku zapisu -> etykieta" w ustawieniach gry.
-//  Do zapisu i odczytu uzywamy "surowych" ustawien (bez deklaracji grupy
-//  w XML) - tak samo jak robi to gra dla presetow fotomode.
+//  PART 1: TAG STORAGE
+//  We keep "save file name -> tag" pairs in the game settings.
+//  We read/write "raw" settings values (without declaring the group in
+//  XML) - the same way the game does for photomode presets.
 // =========================================================================
 
-// Nazwa grupy w ustawieniach gry, pod ktora leza wszystkie etykiety.
+// Name of the settings group that holds all tags.
 function SaveTags_Group() : string
 {
 	return "SaveTags";
 }
 
-// Zamienia nazwe pliku na "bezpieczny" klucz.
-// Klucz w ustawieniach moze zawierac tylko litery, cyfry i podkreslenie,
-// wiec kazdy inny znak zamieniamy na "_". Dzieki temu klucz jest poprawny
-// nawet gdy ktos recznie zmieni nazwe pliku (spacje, nawiasy itp.).
+// Turns a file name into a "safe" key.
+// A settings key may contain only letters, digits and underscore, so every
+// other character becomes "_". Thanks to this the key is always valid, even
+// if someone manually changed a file name (spaces, brackets, etc.).
 function SaveTags_Key(file : string) : string
 {
 	var allowed : string;
@@ -90,46 +90,46 @@ function SaveTags_Key(file : string) : string
 	return result;
 }
 
-// Odczyt jednej wartosci z ustawien gry.
+// Reads a single value from the game settings.
 function SaveTags_CfgGet(key : string) : string
 {
 	return theGame.GetInGameConfigWrapper().GetRawConfigValueByStr(SaveTags_Group(), key);
 }
 
-// Zapis jednej wartosci do ustawien gry (jeszcze nie na dysk).
+// Writes a single value to the game settings (not to disk yet).
 function SaveTags_CfgSet(key : string, value : string)
 {
 	theGame.GetInGameConfigWrapper().SetRawConfigValueByStr(SaveTags_Group(), key, value);
 }
 
-// Wymuszenie zapisu ustawien na dysk (trwaly zapis).
+// Forces the settings to be written to disk (persistent save).
 function SaveTags_Flush()
 {
 	theGame.SaveUserSettings();
 }
 
-// Odczyt etykiety dla podanego pliku zapisu (pusty napis = brak etykiety).
+// Reads the tag for the given save file (empty string = no tag).
 function SaveTags_GetFile(file : string) : string
 {
 	return SaveTags_CfgGet(SaveTags_Key(file));
 }
 
-// Etykieta trafia do ustawien i na liste, wiec usuwamy znaki, ktore moga
-// popsuc format zapisu ("|" to separator, "=" to przypisanie, "\n" to nowa
-// linia). Zwykly tekst, np. "Kamil", przechodzi bez zmian.
+// The tag goes into the settings and onto the list, so we remove characters
+// that could break the format ("|" is a separator, "=" is an assignment,
+// "\n" is a newline). Plain text such as "Kamil" passes through unchanged.
 function SaveTags_CleanOwner(owner : string) : string
 {
 	return StrReplaceAll(StrReplaceAll(StrReplaceAll(owner, "|", "_"), "=", "_"), "\n", " ");
 }
 
-// Zapisuje etykiete dla danego pliku zapisu (od razu na dysk).
+// Stores a tag for the given save file (written to disk right away).
 function SaveTags_SetFile(file : string, owner : string)
 {
 	SaveTags_CfgSet(SaveTags_Key(file), SaveTags_CleanOwner(owner));
 	SaveTags_Flush();
 }
 
-// Skroty pracujace na obiekcie zapisu (SSavegameInfo) zamiast na nazwie pliku.
+// Shortcuts that work on a save object (SSavegameInfo) instead of a file name.
 function SaveTags_Get(save : SSavegameInfo) : string
 {
 	return SaveTags_GetFile(save.filename);
@@ -140,9 +140,9 @@ function SaveTags_Set(save : SSavegameInfo, owner : string)
 	SaveTags_SetFile(save.filename, owner);
 }
 
-// Buduje tekst, ktory gracz zobaczy na liscie zapisow.
-// Bez etykiety zwraca oryginalna nazwe gry; z etykieta dokleja ja z przodu:
-//    "Bestia z Bialego Sadu - wtorek"  ->  "[Kamil] Bestia z Bialego Sadu - ..."
+// Builds the text the player sees on the save list.
+// Without a tag it returns the original game name; with a tag it prepends it:
+//    "Beast of the White Orchard - Tuesday"  ->  "[Kamil] Beast of the White Orchard - ..."
 function SaveTags_Label(save : SSavegameInfo, engineName : string) : string
 {
 	var owner : string;
@@ -159,16 +159,16 @@ function SaveTags_Label(save : SSavegameInfo, engineName : string) : string
 
 
 // =========================================================================
-//  CZESC 2: PRZENOSZENIE ETYKIETY PRZY NADPISANIU
-//  Nadpisanie zapisu = nowy plik. Zeby etykieta nie zostala przy starym,
-//  zapamietujemy ja przed zapisem i przypisujemy nowemu plikowi, gdy gra
-//  juz go widzi. Stan posredni trzymamy w ustawieniach pod kluczami
-//  zaczynajacymi sie od "__".
+//  PART 2: MOVING THE TAG WHEN OVERWRITING
+//  Overwriting a save = a new file. So that the tag does not stay on the
+//  old file, we remember it before saving and assign it to the new file as
+//  soon as the game can see it. The intermediate state is kept in the
+//  settings under keys starting with "__".
 // =========================================================================
 
-// Buduje liste nazw wszystkich widocznych zapisow w formie tekstu:
-//    "|plik1|plik2|plik3|"
-// Dzieki otaczajacym "|" latwo sprawdzic, czy dany plik juz na niej jest.
+// Builds a text list of all visible saves in the form:
+//    "|file1|file2|file3|"
+// The surrounding "|" make it easy to check whether a given file is on it.
 function SaveTags_ListFiles() : string
 {
 	var saves  : array< SSavegameInfo >;
@@ -186,9 +186,9 @@ function SaveTags_ListFiles() : string
 	return result;
 }
 
-// Szuka pierwszego zapisu danego typu, ktorego NIE bylo na liscie "snapshot"
-// przed zapisem. To wlasnie ten plik powstal w wyniku nadpisania.
-// Zwraca nazwe pliku albo "" gdy nowego pliku jeszcze nie widac.
+// Looks for the first save of the given type that was NOT on the "snapshot"
+// list before saving. That is exactly the file created by overwriting.
+// Returns the file name, or "" when the new file is not visible yet.
 function SaveTags_FindNewFileOfType(snapshot : string, type : int) : string
 {
 	var saves : array< SSavegameInfo >;
@@ -207,10 +207,11 @@ function SaveTags_FindNewFileOfType(snapshot : string, type : int) : string
 	return "";
 }
 
-// Domysla (konczy) odlozona migracje etykiety z zapamietanego pliku na nowy.
-// Wywolywana przy budowie listy zapisow i przed kolejnym zapisem, czyli
-// w momentach, gdy gra zdazyla juz zarejestrowac nowy plik po nadpisaniu.
-// Jesli nowego pliku jeszcze nie widac, konczy bez zmian i sprobuje pozniej.
+// Finishes the pending tag move from the remembered file to the new one.
+// Called when the save list is built and before the next save - that is, at
+// moments when the game has already registered the new file after an
+// overwrite. If the new file is not visible yet, it exits unchanged and
+// will try again later.
 function SaveTags_TryMigrate()
 {
 	var snapshot : string;
@@ -233,13 +234,13 @@ function SaveTags_TryMigrate()
 
 	if (StrLen(newFile) == 0)
 	{
-		// nowy plik jeszcze nie jest widoczny - sprobujemy nastepnym razem
+		// new file is not visible yet - we will try again next time
 		return;
 	}
 
 	SaveTags_SetFile(newFile, pending);
 
-	// Nadpisalismy aktualny zapis (albo tworzymy nowy) - on jest teraz biezacy.
+	// We overwrote the current save (or are creating a new one) - it is now current.
 	if (StrLen(oldSave) == 0 || oldSave == SaveTags_CfgGet("__current"))
 	{
 		SaveTags_CfgSet("__current", newFile);
@@ -256,11 +257,11 @@ function SaveTags_TryMigrate()
 
 
 // =========================================================================
-//  CZESC 3: PODMIANA BUDOWY WIERSZY LISTY ZAPISOW
-//  To jest cala oryginalna funkcja z gry (wersja 5.0). Zmienilismy w niej
-//  TYLKO JEDNO: pole "label" przechodzi przez SaveTags_Label(), ktore
-//  dokleja etykiete. Reszta dziala tak samo jak w oryginale.
-//  (Lokalizacja oryginalu: game/gui/main_menu/ingamemenu/igmUtilities.ws)
+//  PART 3: REPLACING THE SAVE-LIST ROW BUILDER
+//  This is the whole original game function (version 5.0). We changed
+//  ONLY ONE thing in it: the "label" field goes through SaveTags_Label(),
+//  which prepends the tag. Everything else works the same as the original.
+//  (Original location: game/gui/main_menu/ingamemenu/igmUtilities.ws)
 // =========================================================================
 
 @replaceMethod
@@ -275,7 +276,7 @@ function IngameMenu_PopulateSaveDataForSlotType(flashStorageUtility : CScriptedF
 	var numSavesAdded	: int;
 	var isModdedSave	: bool;
 
-	// Domknij odlozona migracje etykiety, zanim zbudujemy wiersze listy.
+	// Finish the pending tag move before we build the list rows.
 	SaveTags_TryMigrate();
 
 	theGame.ListSavedGames( saveGames, saveType );
@@ -354,10 +355,10 @@ function IngameMenu_PopulateSaveDataForSlotType(flashStorageUtility : CScriptedF
 
 
 // =========================================================================
-//  CZESC 4: FUNKCJE POMOCNICZE
+//  PART 4: HELPER FUNCTIONS
 // =========================================================================
 
-// Zwraca liste wszystkich widocznych zapisow.
+// Returns the list of all visible saves.
 function SaveTags_Saves() : array< SSavegameInfo >
 {
 	var saves : array< SSavegameInfo >;
@@ -365,8 +366,8 @@ function SaveTags_Saves() : array< SSavegameInfo >
 	return saves;
 }
 
-// Wypisuje komunikat jednoczesnie do logu gry i na ekran (HUD).
-// Przydatne w komendach konsoli - od razu widzisz efekt.
+// Prints a message both to the game log and on screen (HUD).
+// Handy in console commands - you see the result immediately.
 function SaveTags_Say(text : string)
 {
 	var witcher : W3PlayerWitcher;

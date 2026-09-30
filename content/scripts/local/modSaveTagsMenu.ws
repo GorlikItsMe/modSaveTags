@@ -1,28 +1,29 @@
 /***********************************************************************/
-/**  modSaveTags - dodatkowy wpis w menu pauzy.
+/**  modSaveTags - extra entry in the pause menu.
 /**
-/**  CO ROBI TEN WPIS?
-/**  W menu pauzy (klawisz Esc w grze) pojawia sie na dole pozycja:
-/**       "Zapis: Kamil"   albo   "Zapis bez nazwy"
-/**  Pokazuje ona etykiete aktualnie wczytanego zapisu.
+/**  WHAT DOES THIS ENTRY DO?
+/**  In the pause menu (Esc in game) an item appears at the bottom:
+/**       "Zapis: Kamil"   or   "Zapis bez nazwy"
+/**  It shows the tag of the currently loaded save.
 /**
-/**  PO KLIKNIECIU przechodzi do nastepnej nazwy z listy SaveTags_Names():
-/**       (brak) -> Kamil -> Bartek -> (brak) -> ...
-/**  Liste nazw edytujesz w funkcji SaveTags_Names() ponizej.
+/**  WHEN CLICKED it advances to the next name from the SaveTags_Names()
+/**  list:
+/**       (none) -> Kamil -> Bartek -> (none) -> ...
+/**  You edit the name list in SaveTags_Names() below.
 /**
-/**  DLACZEGO CYKL, A NIE WPISYWANIE TEKSTU?
-/**  Na PC gra nie udostepnia skryptom pola do wpisywania tekstu, dlatego
-/**  zamiast tego klikniecie przelacza kolejne gotowe nazwy. Dowolna inna
-/**  etykiete ustawisz komenda tagsSet(...) w konsoli (~).
+/**  WHY A CYCLE INSTEAD OF TYPING TEXT?
+/**  On PC the game does not expose a text-input field to scripts, so
+/**  instead a click cycles through ready-made names. Any other tag can be
+/**  set with the tagsSet(...) command in the console (~).
 /**
-/**  Wpis widoczny jest tylko w grze (w menu pauzy), nie w menu glownym.
+/**  The entry is visible only in game (pause menu), not in the main menu.
 /***********************************************************************/
 
 
 // =========================================================================
-//  LISTA NAZW DO PRZELACZANIA
-//  Tu edytujesz nazwy: dopisz lub usun linie names.PushBack("...");
-//  Cykl: (brak) -> pierwsza -> druga -> ... -> ostatnia -> (brak)
+//  LIST OF NAMES TO CYCLE THROUGH
+//  Edit the names here: add or remove lines names.PushBack("...");
+//  Cycle: (none) -> first -> second -> ... -> last -> (none)
 // =========================================================================
 
 function SaveTags_Names() : array< string >
@@ -38,10 +39,10 @@ function SaveTags_Names() : array< string >
 
 
 // =========================================================================
-//  DODANIE WPISU DO MENU
+//  ADDING THE ENTRY TO THE MENU
 // =========================================================================
 
-// Zwraca tekst wpisu w menu na podstawie etykiety biezacego zapisu.
+// Returns the menu entry text based on the tag of the current save.
 function SaveTags_MenuLabel() : string
 {
 	var current : string;
@@ -63,20 +64,20 @@ function SaveTags_MenuLabel() : string
 	return "Zapis: " + owner;
 }
 
-// Unikalny numer ("tag") naszego wpisu w menu. Gra rozpoznaje po nim,
-// ktory wpis zostal klikniety - patrz SaveTags_MenuTag() nizej.
+// Unique number ("tag") of our menu entry. The game uses it to recognize
+// which entry was clicked - see SaveTags_MenuTag() below.
 function SaveTags_MenuTag() : int
 {
 	return 2137007;
 }
 
-// Tworzy obiekt wpisu i doklada go na koniec listy menu pauzy.
+// Creates the entry object and appends it to the end of the pause-menu list.
 function SaveTags_AddMenuEntry(creator : IngameMenuStructureCreator, entries : CScriptedFlashArray)
 {
 	var menuEntry : CScriptedFlashObject;
 	var subList   : CScriptedFlashArray;
 
-	// tylko w grze, nie w menu glownym
+	// in game only, not in the main menu
 	if (!creator.parentMenu || creator.parentMenu.isMainMenu)
 	{
 		return;
@@ -96,7 +97,7 @@ function SaveTags_AddMenuEntry(creator : IngameMenuStructureCreator, entries : C
 	entries.PushBackFlashObject(menuEntry);
 }
 
-// Buduje liste menu pauzy i na koniec dokleja nasz wpis (pod "Wyjdz z gry").
+// Builds the pause-menu list and appends our entry at the end (under "Exit game").
 @wrapMethod(IngameMenuStructureCreator)
 function PopulateMenuData() : CScriptedFlashArray
 {
@@ -113,10 +114,10 @@ function PopulateMenuData() : CScriptedFlashArray
 
 
 // =========================================================================
-//  OBSLUGA KLIKNIECIA - przelaczanie nazwy
+//  CLICK HANDLING - cycling the name
 // =========================================================================
 
-// Ustala nastepna etykiete w cyklu i zapisuje ja biezacemu zapisowi.
+// Picks the next tag in the cycle and stores it on the current save.
 function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 {
 	var current : string;
@@ -143,7 +144,7 @@ function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 	owner = SaveTags_GetFile(current);
 	idx   = -1;
 
-	// Znajdz aktualna etykiete na liscie nazw (idx = -1 gdy jej tam nie ma).
+	// Find the current tag on the name list (idx = -1 when it is not there).
 	for (i = 0; i < names.Size(); i += 1)
 	{
 		if (names[i] == owner)
@@ -154,15 +155,15 @@ function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 
 	if (idx < 0)
 	{
-		owner = names[0];              // nieznany tag -> pierwsza nazwa
+		owner = names[0];              // unknown tag -> first name
 	}
 	else if (idx + 1 < names.Size())
 	{
-		owner = names[idx + 1];        // nastepna nazwa
+		owner = names[idx + 1];        // next name
 	}
 	else
 	{
-		owner = "";                    // po ostatniej -> brak nazwy
+		owner = "";                    // past the last one -> no name
 	}
 
 	SaveTags_SetFile(current, owner);
@@ -179,7 +180,7 @@ function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 	SaveTags_RefreshMenu(menu);
 }
 
-// Przebudowuje liste menu, zeby etykieta wpisu od razu pokazala nowy tag.
+// Rebuilds the menu list so the entry label immediately shows the new tag.
 function SaveTags_RefreshMenu(menu : CR4IngameMenu)
 {
 	var entries : CScriptedFlashArray;
@@ -193,9 +194,9 @@ function SaveTags_RefreshMenu(menu : CR4IngameMenu)
 	menu.m_structureCreator.m_flashValueStorage.SetFlashArray("ingamemenu.entries", entries);
 }
 
-// Przechwytuje klikniecia w menu pauzy.
-// Jesli kliknieto NASZ wpis (po numerze z SaveTags_MenuTag()), przelaczamy
-// nazwe; w kazdym innym przypadku oddajemy klikniecie oryginalnej grze.
+// Intercepts clicks in the pause menu.
+// If OUR entry was clicked (by the number from SaveTags_MenuTag()), we cycle
+// the name; in every other case we pass the click to the original game.
 @wrapMethod(CR4IngameMenu)
 function OnItemActivated(actionType : int, menuTag : int)
 {

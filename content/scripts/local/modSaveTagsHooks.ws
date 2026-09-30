@@ -1,40 +1,40 @@
 /***********************************************************************/
-/**  modSaveTags - podsluchiwanie zapisu i wczytania gry.
+/**  modSaveTags - hooking the save and load moments of the game.
 /**
-/**  Ten plik NIE przechowuje etykiet - to robi modSaveTags.ws.
-/**  Jego zadanie to "podsluchac" momenty, w ktorych gra zapisuje albo
-/**  wczytuje gre, i przekazac te informacje dalej:
+/**  This file does NOT store tags - modSaveTags.ws does that.
+/**  Its job is to "catch" the moments when the game saves or loads, and
+/**  pass that information on:
 /**
-/**   - przed zapisem: zapamietuje etykiete nadpisywanego zapisu
-/**     (zeby moc ja przeniesc na nowy plik), oraz liste plikow,
-/**   - po zapisie: jesli zapis sie nie udal, czysci zapamietane dane,
-/**   - przy wczytaniu / nowej grze: zapamietuje, ktory zapis jest biezacy
-/**     (__current), zeby menu pauzy moglo pokazac jego etykiete.
+/**   - before saving: remembers the tag of the save being overwritten
+/**     (so it can be moved to the new file), plus the file list,
+/**   - after saving: if the save failed, clears the remembered data,
+/**   - on load / new game: remembers which save is currently loaded
+/**     (__current), so the pause menu can show its tag.
 /**
-/**  Uwaga o nazwach funkcji z prefiksem "@wrapMethod" i "@replaceMethod":
-/**  to "haczyki" (hooki) - podmieniaja lub opakowuja funkcje gry. Dzieki
-/**  nim nie musimy kopiowac calego kodu gry, tylko dodajemy swoje.
+/**  A note on the "@wrapMethod" / "@replaceMethod" prefixes:
+/**  these are "hooks" - they replace or wrap a game function. Thanks to
+/**  them we do not copy the whole game code, we only add our own part.
 /***********************************************************************/
 
 
 // =========================================================================
-//  ZAPIS GRY
+//  SAVING THE GAME
 //
-//  Kolejnosc zdarzen przy zapisie:
-//    1) executeSave()      - PRZED zapisem; gra jeszcze nic nie zmienila
-//    2) (gra zapisuje plik)
-//    3) OnSaveCompleted()  - PO zapisie; ale gra JESZCZE nie widzi nowego pliku
-//    4) pozniej: gdy gra odswiezy liste zapisow, SaveTags_TryMigrate()
-//       z modSaveTags.ws przenosi etykiete na nowy plik.
+//  Order of events when saving:
+//    1) executeSave()      - BEFORE saving; the game has not changed anything yet
+//    2) (the game writes the file)
+//    3) OnSaveCompleted()  - AFTER saving; but the game does NOT see the new file yet
+//    4) later: when the game refreshes the save list, SaveTags_TryMigrate()
+//       from modSaveTags.ws moves the tag to the new file.
 // =========================================================================
 
-// Punkt 1: uruchamiane tuz przed zapisem gry.
-// Zapamietujemy:
-//   __pending     - etykiete zapisu, ktory zaraz zostanie nadpisany,
-//   __pendingtype - typ zapisu (szybki/autozapis/reczny),
-//   __oldsave     - nazwe pliku nadpisywanego zapisu,
-//   __snapshot    - liste plikow zapisow PRZED zapisem.
-// Dzieki temu pozniej wiemy, ktory plik jest nowy, i co mu przypisac.
+// Step 1: runs right before the game saves.
+// We remember:
+//   __pending     - the tag of the save that is about to be overwritten,
+//   __pendingtype - the save type (quicksave/autosave/manual),
+//   __oldsave     - the file name of the save being overwritten,
+//   __snapshot    - the list of save files BEFORE saving.
+// This way we later know which file is new, and what to assign to it.
 @wrapMethod(CR4IngameMenu)
 function executeSave(type : ESaveGameType, slot : int) : void
 {
@@ -43,7 +43,7 @@ function executeSave(type : ESaveGameType, slot : int) : void
 	var oldSave : string;
 	var i       : int;
 
-	// Domknij poprzednia migracje, jesli silnik zdazyl juz zaktualizowac liste.
+	// Finish the previous move if the engine has already updated the list.
 	SaveTags_TryMigrate();
 
 	pending = "";
@@ -75,10 +75,10 @@ function executeSave(type : ESaveGameType, slot : int) : void
 	wrappedMethod(type, slot);
 }
 
-// Punkt 3: uruchamiane po zakonczeniu zapisu.
-// Przy sukcesie NIC tu nie przenosimy (gra jeszcze nie widzi nowego pliku) -
-// zrobi to pozniej SaveTags_TryMigrate(). Przy niepowodzeniu czyscimy
-// zapamietane dane, bo nie ma czego przenosic.
+// Step 3: runs after saving finishes.
+// On success we move NOTHING here (the game does not see the new file yet) -
+// SaveTags_TryMigrate() does that later. On failure we clear the remembered
+// data, because there is nothing to move.
 @wrapMethod(CR4Game)
 function OnSaveCompleted(type : ESaveGameType, succeeded : bool)
 {
@@ -99,7 +99,7 @@ function OnSaveCompleted(type : ESaveGameType, succeeded : bool)
 
 	if (!succeeded)
 	{
-		// zapis sie nie udal - nie ma czego przenosic
+		// the save failed - there is nothing to move
 		SaveTags_CfgSet("__snapshot", "");
 		SaveTags_CfgSet("__pending", "");
 		SaveTags_CfgSet("__pendingtype", "");
@@ -107,21 +107,22 @@ function OnSaveCompleted(type : ESaveGameType, succeeded : bool)
 		SaveTags_Flush();
 	}
 
-	// Przy sukcesie NIE przenosimy tagu tutaj: w tej chwili silnik jeszcze nie
-	// widzi nowego pliku na liscie. Robi to SaveTags_TryMigrate(), gdy lista
-	// jest juz aktualna (przy budowie listy zapisow lub kolejnym zapisie).
+	// On success we do NOT move the tag here: at this moment the engine still
+	// does not see the new file on the list. That is done by
+	// SaveTags_TryMigrate() once the list is up to date (when the save list is
+	// built or on the next save).
 }
 
 
 // =========================================================================
-//  WCZYTANIE GRY - kto jest "biezacym" zapisem?
+//  LOADING THE GAME - who is the "current" save?
 //
-//  Menu pauzy pokazuje etykiete biezacego zapisu, wiec musimy wiedziec,
-//  ktory zapis gracz aktualnie wczytal. Zapisujemy jego nazwe pliku
-//  w ustawieniach pod kluczem "__current".
+//  The pause menu shows the tag of the current save, so we need to know
+//  which save the player has actually loaded. We store its file name in
+//  the settings under the key "__current".
 // =========================================================================
 
-// Gracz wybral konkretny zapis z listy "Wczytaj gre".
+// The player picked a specific save from the "Load game" list.
 @wrapMethod(CR4IngameMenu)
 function LoadSaveRequested(saveSlotRef : SSavegameInfo) : void
 {
@@ -131,8 +132,8 @@ function LoadSaveRequested(saveSlotRef : SSavegameInfo) : void
 	wrappedMethod(saveSlotRef);
 }
 
-// Opcja "Kontynuuj" wczytuje ostatni zapis bez podania pliku -
-// bierzemy najswiezszy z listy.
+// The "Continue" option loads the last save without giving a file name -
+// we take the newest one from the list.
 @wrapMethod(CR4IngameMenu)
 function LoadLastSave(allowModCheck : bool) : void
 {
@@ -149,7 +150,7 @@ function LoadLastSave(allowModCheck : bool) : void
 	wrappedMethod(allowModCheck);
 }
 
-// Nowa gra nie ma jeszcze zadnego zapisu.
+// A new game does not have any save yet.
 @wrapMethod(CR4IngameMenu)
 function NewGameRequested() : void
 {
