@@ -5,7 +5,7 @@
 /**  When two people play on the same PC, saves look identical and it is
 /**  hard to tell whose is whose. This mod lets you attach your own tag
 /**  to a save and see it on the "Load game" list, e.g.:
-/**      [Kamil] Beast of the White Orchard - Tuesday, ...
+/**      [Geralt] Beast of the White Orchard - Tuesday, ...
 /**
 /**  HOW DOES IT WORK (in short)?
 /**  The game does not allow renaming a save, but it does allow replacing
@@ -107,7 +107,7 @@ function SaveTags_GetFile(file : string) : string
 
 // The tag goes into the settings and onto the list, so we remove characters
 // that could break the format ("|" is a separator, "=" is an assignment,
-// "\n" is a newline). Plain text such as "Kamil" passes through unchanged.
+// "\n" is a newline). Plain text such as "Geralt" passes through unchanged.
 function SaveTags_CleanOwner(owner : string) : string
 {
 	return StrReplaceAll(StrReplaceAll(StrReplaceAll(owner, "|", "_"), "=", "_"), "\n", " ");
@@ -128,7 +128,7 @@ function SaveTags_Get(save : SSavegameInfo) : string
 
 // Builds the text the player sees on the save list.
 // Without a tag it returns the original game name; with a tag it prepends it:
-//    "Beast of the White Orchard - Tuesday"  ->  "[Kamil] Beast of the White Orchard - ..."
+//    "Beast of the White Orchard - Tuesday"  ->  "[Geralt] Beast of the White Orchard - ..."
 function SaveTags_Label(save : SSavegameInfo, engineName : string) : string
 {
 	var owner : string;

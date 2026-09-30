@@ -3,38 +3,79 @@
 /**
 /**  WHAT DOES THIS ENTRY DO?
 /**  In the pause menu (Esc in game) an item appears at the bottom:
-/**       "Zapis: Kamil"   or   "Zapis bez nazwy"
+/**       "Zapis: Geralt"   or   "Zapis bez nazwy"
 /**  It shows the tag of the currently loaded save.
 /**
-/**  WHEN CLICKED it advances to the next name from the SaveTags_Names()
-/**  list:
-/**       (none) -> Kamil -> Bartek -> (none) -> ...
-/**  You edit the name list in SaveTags_Names() below.
+/**  WHEN CLICKED it advances to the next name from the rotation list:
+/**       (none) -> Geralt -> Yennefer -> Triss -> ... -> (none) -> ...
+/**
+/**  THE ROTATION LIST IS CONFIGURABLE
+/**  The names come from the game settings, group "SaveTags", key "names",
+/**  stored as text separated by "|", for example:
+/**       names=Geralt|Yennefer|Triss|Jaskier|Ciri|
+/**  On the first run the mod creates this entry with lore-friendly defaults
+/**  (SaveTags_DefaultNames below). To use your own names, edit the config:
+/**    1) close the game,
+/**    2) open "Documents\The Witcher 3\user.settings"    (DX11) or
+/**       "dx12user.settings"                             (DX12),
+/**    3) find the [SaveTags] section and change the "names" line,
+/**    4) start the game - your names are now in the rotation.
 /**
 /**  WHY A CYCLE INSTEAD OF TYPING TEXT?
-/**  On PC the game does not expose a text-input field to scripts, so
-/**  instead a click cycles through ready-made names. To have any other tag,
-/**  just add it to the SaveTags_Names() list below.
+/**  On PC the game does not expose a text-input field to scripts, so a
+/**  click cycles through ready-made names from the config instead.
 /**
 /**  The entry is visible only in game (pause menu), not in the main menu.
 /***********************************************************************/
 
 
 // =========================================================================
-//  LIST OF NAMES TO CYCLE THROUGH
-//  Edit the names here: add or remove lines names.PushBack("...");
+//  ROTATION NAMES (read from / written to the game settings)
 //  Cycle: (none) -> first -> second -> ... -> last -> (none)
 // =========================================================================
 
-function SaveTags_Names() : array< string >
+// Lore-friendly defaults used the first time, until you edit the config.
+function SaveTags_DefaultNames() : string
 {
-	var names : array< string >;
+	return "Geralt|Yennefer|Triss|Jaskier|Ciri|";
+}
 
-	names.PushBack("Kamil");
-	names.PushBack("Szymon");
-	names.PushBack("Bartek");
+// Turns the stored "A|B|C|" text into a clean list (skips empty entries).
+function SaveTags_ParseNames(raw : string) : array< string >
+{
+	var parts : array< string >;
+	var names : array< string >;
+	var i     : int;
+
+	parts = StrSplit(raw, "|");
+
+	for (i = 0; i < parts.Size(); i += 1)
+	{
+		if (StrLen(parts[i]) > 0)
+		{
+			names.PushBack(parts[i]);
+		}
+	}
 
 	return names;
+}
+
+// Returns the rotation names. If the config entry does not exist yet, it is
+// created first from the default names above, so the player can then edit it.
+function SaveTags_Names() : array< string >
+{
+	var stored : string;
+
+	stored = SaveTags_CfgGet("names");
+
+	if (StrLen(stored) == 0)
+	{
+		stored = SaveTags_DefaultNames();
+		SaveTags_CfgSet("names", stored);
+		SaveTags_Flush();
+	}
+
+	return SaveTags_ParseNames(stored);
 }
 
 
