@@ -4,10 +4,28 @@
 /**  Wpis pokazuje tag biezacego zapisu ("Zapis: <tag>" / "Zapis bez nazwy"),
 /**  widoczny tylko w grze (nie w menu glownym).
 /**
-/**  KLIKNIECIE (WIP, na razie nie dziala poprawnie): probuje otworzyc
-/**  wirtualna klawiature i wpisac nowy tag. Zabezpieczone tak, ze puste
-/**  wejscie NIE kasuje tagu. Funkcje bazowe sa w modSaveTags.ws.
+/**  Klikniecie przechodzi do nastepnej nazwy z listy SaveTags_Names():
+/**  (brak) -> Kamil -> Bartek -> (brak) -> ...
+/**  Liste nazw edytujesz w SaveTags_Names() ponizej.
+/**
+/**  Uwaga: na PC gra nie udostepnia polu tekstowego dla skryptow, dlatego
+/**  zamiast wpisywania jest cykl nazw. Dowolny tag ustawisz komenda
+/**  tagsSet(...) w konsoli (~).
 /***********************************************************************/
+
+
+// ============================== lista nazw =================================
+// Edytuj tutaj: dopisz/usun nazwy. Cykl: (brak) -> [0] -> [1] -> ... -> (brak)
+
+function SaveTags_Names() : array< string >
+{
+	var names : array< string >;
+
+	names.PushBack("Kamil");
+	names.PushBack("Bartek");
+
+	return names;
+}
 
 
 // ======================= dodatkowy wpis w menu gry ==========================
@@ -74,36 +92,20 @@ function PopulateMenuData() : CScriptedFlashArray
 }
 
 
-// ======================= wpisywanie nowego tagu (WIP) =======================
+// =========================== cykl nazw (klik) ==============================
 
 function SaveTags_MenuTag() : int
 {
 	return 777777;
 }
 
-function SaveTags_CurrentOwner() : string
+function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 {
 	var current : string;
-
-	current = SaveTags_CfgGet("__current");
-
-	if (StrLen(current) == 0)
-	{
-		return "";
-	}
-
-	return SaveTags_GetFile(current);
-}
-
-function SaveTags_ApplyInput(owner : string)
-{
-	var current : string;
-
-	// Puste wejscie (np. anulowanie klawiatury) NIE moze skasowac tagu.
-	if (StrLen(owner) == 0)
-	{
-		return;
-	}
+	var owner   : string;
+	var names   : array< string >;
+	var idx     : int;
+	var i       : int;
 
 	current = SaveTags_CfgGet("__current");
 
@@ -113,74 +115,63 @@ function SaveTags_ApplyInput(owner : string)
 		return;
 	}
 
+	names = SaveTags_Names();
+
+	if (names.Size() == 0)
+	{
+		return;
+	}
+
+	owner = SaveTags_GetFile(current);
+	idx   = -1;
+
+	for (i = 0; i < names.Size(); i += 1)
+	{
+		if (names[i] == owner)
+		{
+			idx = i;
+		}
+	}
+
+	if (idx < 0)
+	{
+		owner = names[0];              // nieznany tag -> pierwsza nazwa
+	}
+	else if (idx + 1 < names.Size())
+	{
+		owner = names[idx + 1];        // nastepna nazwa
+	}
+	else
+	{
+		owner = "";                    // po ostatniej -> brak nazwy
+	}
+
 	SaveTags_SetFile(current, owner);
-	SaveTags_Say("Zapis: '" + owner + "'");
+
+	if (StrLen(owner) == 0)
+	{
+		SaveTags_Say("Zapis bez nazwy.");
+	}
+	else
+	{
+		SaveTags_Say("Zapis: '" + owner + "'");
+	}
+
+	SaveTags_RefreshMenu(menu);
 }
 
-function SaveTags_OpenTextInput(menu : CR4IngameMenu)
+// Przebudowuje liste menu, zeby etykieta wpisu od razu pokazala nowy tag.
+function SaveTags_RefreshMenu(menu : CR4IngameMenu)
 {
-	if (!menu.m_saveTagsTextInput)
+	var entries : CScriptedFlashArray;
+
+	if (!menu || !menu.m_structureCreator)
 	{
-		menu.m_saveTagsTextInput = new SaveTagsTextInput in menu;
+		return;
 	}
 
-	menu.m_saveTagsTextInput.OpenInput(menu, SaveTags_CurrentOwner());
-}
-
-// Pole na instancje maszyny stanow (musi zyc dluzej niz jedno klikniecie).
-@addField(CR4IngameMenu)
-public var m_saveTagsTextInput : SaveTagsTextInput;
-
-statemachine class SaveTagsTextInput extends CR4MenuBase
-{
-	public var m_config : SVirtualKeyboardConfig;
-	public var m_menu   : CR4MenuBase;
-
-	default autoState = 'Idle';
-
-	public function OpenInput(menu : CR4MenuBase, current : string)
-	{
-		var config : SVirtualKeyboardConfig;
-
-		config.titleStr   = "Tag zapisu";
-		config.defaultStr = current;
-
-		m_config = config;
-		m_menu   = menu;
-
-		GotoState('Enter');
-	}
-
-	public function Done()
-	{
-		GotoState('Idle');
-	}
-}
-
-state Idle in SaveTagsTextInput
-{
-	event OnEnterState(prevStateName : name)
-	{
-		super.OnEnterState(prevStateName);
-	}
-}
-
-state Enter in SaveTagsTextInput
-{
-	event OnEnterState(prevStateName : name)
-	{
-		super.OnEnterState(prevStateName);
-		RunInput();
-	}
-
-	entry function RunInput() : void
-	{
-		var result : string;
-
-		result = theInput.OpenVirtualKeyboard(parent.m_config);
-		SaveTags_ApplyInput(result);
-		parent.Done();
-	}
+	entries = menu.m_structureCreator.PopulateMenuData();
+	menu.m_structureCreator.m_flashValueStorage.SetFlashArray("ingamemenu.entries", entries);
 }
 
 // Przechwycenie klikniecia naszego wpisu w menu pauzy.
@@ -189,7 +180,7 @@ function OnItemActivated(actionType : int, menuTag : int)
 {
 	if (menuTag == SaveTags_MenuTag())
 	{
-		SaveTags_OpenTextInput(this);
+		SaveTags_CycleCurrent(this);
 	}
 	else
 	{
