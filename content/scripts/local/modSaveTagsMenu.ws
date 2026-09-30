@@ -1,6 +1,7 @@
 /***********************************************************************/
 /**  modSaveTags - pause-menu entry.
-/**  Shows the current save's tag: "Zapis: Geralt" / "Zapis bez nazwy".
+/**  Shows the current save's tag: "Save: Geralt" / "Unnamed save" - the text
+/**  comes from the translation files, see modSaveTagsLoc.ws.
 /**  Clicking cycles the rotation names, e.g.:
 /**      (none) -> Geralt -> Yennefer -> Triss -> ... -> (none)
 /**  The names live in the config (see README.md). Visible in game only.
@@ -9,10 +10,20 @@
 
 // ===== ROTATION NAMES (from the game settings) =====
 
-// Defaults used until you edit the config.
+// Defaults used until you edit the config. They come from the translation files
+// as well, because some names differ between languages ("Jaskier" is "Dandelion"
+// in English) - see modSaveTagsLoc.ws and strings/README.md.
 function SaveTags_DefaultNames() : string
 {
-	return "Geralt|Yennefer|Triss|Jaskier|Ciri|";
+	var names : string;
+
+	names = SaveTags_Loc("mst_name_1", "Geralt") + "|";
+	names = names + SaveTags_Loc("mst_name_2", "Yennefer") + "|";
+	names = names + SaveTags_Loc("mst_name_3", "Triss") + "|";
+	names = names + SaveTags_Loc("mst_name_4", "Dandelion") + "|";
+	names = names + SaveTags_Loc("mst_name_5", "Ciri") + "|";
+
+	return names;
 }
 
 // Splits the stored "A|B|C|" text into a clean list (skips empty entries).
@@ -72,10 +83,10 @@ function SaveTags_MenuLabel() : string
 
 	if (StrLen(owner) == 0)
 	{
-		return "Zapis bez nazwy";
+		return SaveTags_Loc("mst_save_none", "Unnamed save");
 	}
 
-	return "Zapis: " + owner;
+	return SaveTags_Loc("mst_save_is", "Save:") + " " + owner;
 }
 
 // Unique id of our entry, so we can recognize its click.
@@ -141,7 +152,7 @@ function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 
 	if (StrLen(current) == 0)
 	{
-		SaveTags_Say("Brak wczytanego zapisu - nie ma czego nazwac.");
+		SaveTags_Say(SaveTags_Loc("mst_hud_no_save", "No save is loaded - there is nothing to name."));
 		return;
 	}
 
@@ -181,11 +192,11 @@ function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 
 	if (StrLen(owner) == 0)
 	{
-		SaveTags_Say("Zapis bez nazwy.");
+		SaveTags_Say(SaveTags_Loc("mst_hud_none", "Save without a name."));
 	}
 	else
 	{
-		SaveTags_Say("Zapis: '" + owner + "'");
+		SaveTags_Say(SaveTags_Loc("mst_save_is", "Save:") + " '" + owner + "'");
 	}
 
 	SaveTags_RefreshMenu(menu);

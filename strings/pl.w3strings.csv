@@ -1,0 +1,19 @@
+;meta[language=pl]
+; id      |key(hex)|key(str)| text
+;
+; modSaveTags - teksty moda po polsku (zrodlo; plik wynikowy: content/pl.w3strings).
+; Edytuj tylko kolumne "text" (po ostatnim znaku '|'). Nie zmieniaj id ani kluczy.
+; Nowy jezyk: skopiuj ten plik jako strings/<kod>.w3strings.csv i zmien ;meta[language=xx].
+;
+; Uwaga: etykieta w menu sklada sie jako  <mst_save_is> + " " + tag,
+; dlatego teksty nie maja spacji na koncu.
+;
+2137135001||mst_save_none|Zapis bez nazwy
+2137135002||mst_save_is|Zapis:
+2137135003||mst_hud_no_save|Brak wczytanego zapisu - nie ma czego nazwać.
+2137135004||mst_hud_none|Zapis bez nazwy.
+2137135005||mst_name_1|Geralt
+2137135006||mst_name_2|Yennefer
+2137135007||mst_name_3|Triss
+2137135008||mst_name_4|Jaskier
+2137135009||mst_name_5|Ciri
