@@ -67,7 +67,7 @@ function SaveTags_MenuLabel() : string
 // ktory wpis zostal klikniety - patrz SaveTags_MenuTag() nizej.
 function SaveTags_MenuTag() : int
 {
-	return 777777;
+	return 2137007;
 }
 
 // Tworzy obiekt wpisu i doklada go na koniec listy menu pauzy.
