@@ -1,46 +1,21 @@
 /***********************************************************************/
-/**  modSaveTags - extra entry in the pause menu.
-/**
-/**  WHAT DOES THIS ENTRY DO?
-/**  In the pause menu (Esc in game) an item appears at the bottom:
-/**       "Zapis: Geralt"   or   "Zapis bez nazwy"
-/**  It shows the tag of the currently loaded save.
-/**
-/**  WHEN CLICKED it advances to the next name from the rotation list:
-/**       (none) -> Geralt -> Yennefer -> Triss -> ... -> (none) -> ...
-/**
-/**  THE ROTATION LIST IS CONFIGURABLE
-/**  The names come from the game settings, group "SaveTags", key "names",
-/**  stored as text separated by "|", for example:
-/**       names=Geralt|Yennefer|Triss|Jaskier|Ciri|
-/**  On the first run the mod creates this entry with lore-friendly defaults
-/**  (SaveTags_DefaultNames below). To use your own names, edit the config:
-/**    1) close the game,
-/**    2) open "Documents\The Witcher 3\user.settings"    (DX11) or
-/**       "dx12user.settings"                             (DX12),
-/**    3) find the [SaveTags] section and change the "names" line,
-/**    4) start the game - your names are now in the rotation.
-/**
-/**  WHY A CYCLE INSTEAD OF TYPING TEXT?
-/**  On PC the game does not expose a text-input field to scripts, so a
-/**  click cycles through ready-made names from the config instead.
-/**
-/**  The entry is visible only in game (pause menu), not in the main menu.
+/**  modSaveTags - pause-menu entry.
+/**  Shows the current save's tag: "Zapis: Geralt" / "Zapis bez nazwy".
+/**  Clicking cycles the rotation names, e.g.:
+/**      (none) -> Geralt -> Yennefer -> Triss -> ... -> (none)
+/**  The names live in the config (see README.md). Visible in game only.
 /***********************************************************************/
 
 
-// =========================================================================
-//  ROTATION NAMES (read from / written to the game settings)
-//  Cycle: (none) -> first -> second -> ... -> last -> (none)
-// =========================================================================
+// ===== ROTATION NAMES (from the game settings) =====
 
-// Lore-friendly defaults used the first time, until you edit the config.
+// Defaults used until you edit the config.
 function SaveTags_DefaultNames() : string
 {
 	return "Geralt|Yennefer|Triss|Jaskier|Ciri|";
 }
 
-// Turns the stored "A|B|C|" text into a clean list (skips empty entries).
+// Splits the stored "A|B|C|" text into a clean list (skips empty entries).
 function SaveTags_ParseNames(raw : string) : array< string >
 {
 	var parts : array< string >;
@@ -60,8 +35,8 @@ function SaveTags_ParseNames(raw : string) : array< string >
 	return names;
 }
 
-// Returns the rotation names. If the config entry does not exist yet, it is
-// created first from the default names above, so the player can then edit it.
+// Returns the rotation names, creating the config entry from the defaults
+// above if it does not exist yet.
 function SaveTags_Names() : array< string >
 {
 	var stored : string;
@@ -79,11 +54,9 @@ function SaveTags_Names() : array< string >
 }
 
 
-// =========================================================================
-//  ADDING THE ENTRY TO THE MENU
-// =========================================================================
+// ===== ADDING THE ENTRY =====
 
-// Returns the menu entry text based on the tag of the current save.
+// Entry text from the current save's tag.
 function SaveTags_MenuLabel() : string
 {
 	var current : string;
@@ -105,14 +78,13 @@ function SaveTags_MenuLabel() : string
 	return "Zapis: " + owner;
 }
 
-// Unique number ("tag") of our menu entry. The game uses it to recognize
-// which entry was clicked - see SaveTags_MenuTag() below.
+// Unique id of our entry, so we can recognize its click.
 function SaveTags_MenuTag() : int
 {
 	return 2137007;
 }
 
-// Creates the entry object and appends it to the end of the pause-menu list.
+// Adds our entry to the pause-menu list (in game only).
 function SaveTags_AddMenuEntry(creator : IngameMenuStructureCreator, entries : CScriptedFlashArray)
 {
 	var menuEntry : CScriptedFlashObject;
@@ -138,7 +110,7 @@ function SaveTags_AddMenuEntry(creator : IngameMenuStructureCreator, entries : C
 	entries.PushBackFlashObject(menuEntry);
 }
 
-// Builds the pause-menu list and appends our entry at the end (under "Exit game").
+// Builds the list and appends our entry at the end.
 @wrapMethod(IngameMenuStructureCreator)
 function PopulateMenuData() : CScriptedFlashArray
 {
@@ -154,11 +126,9 @@ function PopulateMenuData() : CScriptedFlashArray
 }
 
 
-// =========================================================================
-//  CLICK HANDLING - cycling the name
-// =========================================================================
+// ===== CLICK HANDLING (cycling the name) =====
 
-// Picks the next tag in the cycle and stores it on the current save.
+// Stores the next rotation name on the current save.
 function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 {
 	var current : string;
@@ -221,7 +191,7 @@ function SaveTags_CycleCurrent(menu : CR4IngameMenu)
 	SaveTags_RefreshMenu(menu);
 }
 
-// Rebuilds the menu list so the entry label immediately shows the new tag.
+// Rebuilds the menu so the label updates at once.
 function SaveTags_RefreshMenu(menu : CR4IngameMenu)
 {
 	var entries : CScriptedFlashArray;
@@ -235,9 +205,7 @@ function SaveTags_RefreshMenu(menu : CR4IngameMenu)
 	menu.m_structureCreator.m_flashValueStorage.SetFlashArray("ingamemenu.entries", entries);
 }
 
-// Intercepts clicks in the pause menu.
-// If OUR entry was clicked (by the number from SaveTags_MenuTag()), we cycle
-// the name; in every other case we pass the click to the original game.
+// If our entry was clicked, cycle the name; otherwise pass the click on.
 @wrapMethod(CR4IngameMenu)
 function OnItemActivated(actionType : int, menuTag : int)
 {

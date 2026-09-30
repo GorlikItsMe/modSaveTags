@@ -1,54 +1,26 @@
 /***********************************************************************/
-/**  modSaveTags  (The Witcher 3 next-gen / 5.0)
+/**  modSaveTags - adds your own tag to a save, shown on the load list,
+/**  e.g. "[Geralt] Beast of the White Orchard - Tuesday, ...".
 /**
-/**  WHY THIS MOD?
-/**  When two people play on the same PC, saves look identical and it is
-/**  hard to tell whose is whose. This mod lets you attach your own tag
-/**  to a save and see it on the "Load game" list, e.g.:
-/**      [Geralt] Beast of the White Orchard - Tuesday, ...
+/**  Files: modSaveTags.ws (storage + list), modSaveTagsHooks.ws (save/load),
+/**  modSaveTagsMenu.ws (pause-menu entry). See README.md.
 /**
-/**  HOW DOES IT WORK (in short)?
-/**  The game does not allow renaming a save, but it does allow replacing
-/**  the piece of code that builds the save-list rows. We simply prepend
-/**  the tag. The tag itself is stored in the game settings file, under a
-/**  key equal to the save's file name.
-/**
-/**  THE PROBLEM: OVERWRITING A SAVE
-/**  When you overwrite a save, the game creates a NEW file (the date and
-/**  time in the name change) and removes the old one. The tag would then
-/**  stay attached to the old file. So the mod:
-/**    1) BEFORE saving: remembers the tag of the save being overwritten,
-/**    2) AFTER saving: once the game shows the new file, moves the tag.
-/**  This is done by SaveTags_TryMigrate().
-/**
-/**  MOD FILES (content/scripts/local/):
-/**    modSaveTags.ws          - this file: tag storage + save list
-/**    modSaveTagsHooks.ws     - hooks the save and load moments
-/**    modSaveTagsMenu.ws      - extra pause-menu entry (change the tag)
-/**
-/**  NOTE: moving the tag works for saves made from the "Save game" menu.
-/**  Quicksave (F5) and autosave are handled natively by the game - set
-/**  the tag again for those.
+/**  Tags live in the game settings (group "SaveTags", key = save file name).
+/**  Overwriting a save creates a new file, so SaveTags_TryMigrate() moves
+/**  the tag to it. Works for the "Save game" menu; set F5/autosave tags again.
 /***********************************************************************/
 
 
-// =========================================================================
-//  PART 1: TAG STORAGE
-//  We keep "save file name -> tag" pairs in the game settings.
-//  We read/write "raw" settings values (without declaring the group in
-//  XML) - the same way the game does for photomode presets.
-// =========================================================================
+// ===== TAG STORAGE =====
+// "save file name -> tag" pairs kept in the game settings.
 
-// Name of the settings group that holds all tags.
+// Settings group that holds all tags.
 function SaveTags_Group() : string
 {
 	return "SaveTags";
 }
 
-// Turns a file name into a "safe" key.
-// A settings key may contain only letters, digits and underscore, so every
-// other character becomes "_". Thanks to this the key is always valid, even
-// if someone manually changed a file name (spaces, brackets, etc.).
+// Turns a file name into a safe settings key (letters, digits and "_" only).
 function SaveTags_Key(file : string) : string
 {
 	var allowed : string;
@@ -81,54 +53,50 @@ function SaveTags_Key(file : string) : string
 	return result;
 }
 
-// Reads a single value from the game settings.
+// Reads one value from the game settings.
 function SaveTags_CfgGet(key : string) : string
 {
 	return theGame.GetInGameConfigWrapper().GetRawConfigValueByStr(SaveTags_Group(), key);
 }
 
-// Writes a single value to the game settings (not to disk yet).
+// Writes one value to the game settings (not to disk yet).
 function SaveTags_CfgSet(key : string, value : string)
 {
 	theGame.GetInGameConfigWrapper().SetRawConfigValueByStr(SaveTags_Group(), key, value);
 }
 
-// Forces the settings to be written to disk (persistent save).
+// Writes the settings to disk.
 function SaveTags_Flush()
 {
 	theGame.SaveUserSettings();
 }
 
-// Reads the tag for the given save file (empty string = no tag).
+// Reads the tag for a save file (empty = no tag).
 function SaveTags_GetFile(file : string) : string
 {
 	return SaveTags_CfgGet(SaveTags_Key(file));
 }
 
-// The tag goes into the settings and onto the list, so we remove characters
-// that could break the format ("|" is a separator, "=" is an assignment,
-// "\n" is a newline). Plain text such as "Geralt" passes through unchanged.
+// Removes characters that could break the settings format ("|", "=", newline).
 function SaveTags_CleanOwner(owner : string) : string
 {
 	return StrReplaceAll(StrReplaceAll(StrReplaceAll(owner, "|", "_"), "=", "_"), "\n", " ");
 }
 
-// Stores a tag for the given save file (written to disk right away).
+// Stores a tag for a save file (writes to disk).
 function SaveTags_SetFile(file : string, owner : string)
 {
 	SaveTags_CfgSet(SaveTags_Key(file), SaveTags_CleanOwner(owner));
 	SaveTags_Flush();
 }
 
-// Shortcut that works on a save object (SSavegameInfo) instead of a file name.
+// Same as above, but for a save object instead of a file name.
 function SaveTags_Get(save : SSavegameInfo) : string
 {
 	return SaveTags_GetFile(save.filename);
 }
 
-// Builds the text the player sees on the save list.
-// Without a tag it returns the original game name; with a tag it prepends it:
-//    "Beast of the White Orchard - Tuesday"  ->  "[Geralt] Beast of the White Orchard - ..."
+// Builds the list text: prepends "[tag] " when the save has a tag.
 function SaveTags_Label(save : SSavegameInfo, engineName : string) : string
 {
 	var owner : string;
@@ -144,17 +112,11 @@ function SaveTags_Label(save : SSavegameInfo, engineName : string) : string
 }
 
 
-// =========================================================================
-//  PART 2: MOVING THE TAG WHEN OVERWRITING
-//  Overwriting a save = a new file. So that the tag does not stay on the
-//  old file, we remember it before saving and assign it to the new file as
-//  soon as the game can see it. The intermediate state is kept in the
-//  settings under keys starting with "__".
-// =========================================================================
+// ===== MOVING THE TAG WHEN OVERWRITING =====
+// Overwriting makes a new file. We remember the tag before saving and assign
+// it to the new file once the game can see it. Temp state uses "__" keys.
 
-// Builds a text list of all visible saves in the form:
-//    "|file1|file2|file3|"
-// The surrounding "|" make it easy to check whether a given file is on it.
+// All visible saves as "|file1|file2|" (easy to search later).
 function SaveTags_ListFiles() : string
 {
 	var saves  : array< SSavegameInfo >;
@@ -172,9 +134,8 @@ function SaveTags_ListFiles() : string
 	return result;
 }
 
-// Looks for the first save of the given type that was NOT on the "snapshot"
-// list before saving. That is exactly the file created by overwriting.
-// Returns the file name, or "" when the new file is not visible yet.
+// First save of this type that was not in the old list = the new file ("" if
+// the new file is not visible yet).
 function SaveTags_FindNewFileOfType(snapshot : string, type : int) : string
 {
 	var saves : array< SSavegameInfo >;
@@ -193,11 +154,8 @@ function SaveTags_FindNewFileOfType(snapshot : string, type : int) : string
 	return "";
 }
 
-// Finishes the pending tag move from the remembered file to the new one.
-// Called when the save list is built and before the next save - that is, at
-// moments when the game has already registered the new file after an
-// overwrite. If the new file is not visible yet, it exits unchanged and
-// will try again later.
+// Moves the remembered tag to the new file once the game sees it.
+// Exits and retries later if the new file is not visible yet.
 function SaveTags_TryMigrate()
 {
 	var snapshot : string;
@@ -242,13 +200,7 @@ function SaveTags_TryMigrate()
 }
 
 
-// =========================================================================
-//  PART 3: REPLACING THE SAVE-LIST ROW BUILDER
-//  This is the whole original game function (version 5.0). We changed
-//  ONLY ONE thing in it: the "label" field goes through SaveTags_Label(),
-//  which prepends the tag. Everything else works the same as the original.
-//  (Original location: game/gui/main_menu/ingamemenu/igmUtilities.ws)
-// =========================================================================
+// ===== SAVE-LIST ROWS (vanilla function 5.0, only "label" gets the tag) =====
 
 @replaceMethod
 function IngameMenu_PopulateSaveDataForSlotType(flashStorageUtility : CScriptedFlashValueStorage, saveType:int, parentObject:CScriptedFlashArray, allowEmptySlot:bool) : void
@@ -340,12 +292,9 @@ function IngameMenu_PopulateSaveDataForSlotType(flashStorageUtility : CScriptedF
 }
 
 
-// =========================================================================
-//  PART 4: HELPER FUNCTIONS
-// =========================================================================
+// ===== HELPERS =====
 
-// Prints a message both to the game log and on screen (HUD).
-// Gives the player quick feedback, e.g. after changing a tag in the pause menu.
+// Prints a message to the game log and on screen (HUD).
 function SaveTags_Say(text : string)
 {
 	var witcher : W3PlayerWitcher;

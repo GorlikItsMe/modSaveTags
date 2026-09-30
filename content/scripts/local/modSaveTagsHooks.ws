@@ -1,40 +1,16 @@
 /***********************************************************************/
-/**  modSaveTags - hooking the save and load moments of the game.
-/**
-/**  This file does NOT store tags - modSaveTags.ws does that.
-/**  Its job is to "catch" the moments when the game saves or loads, and
-/**  pass that information on:
-/**
-/**   - before saving: remembers the tag of the save being overwritten
-/**     (so it can be moved to the new file), plus the file list,
-/**   - after saving: if the save failed, clears the remembered data,
-/**   - on load / new game: remembers which save is currently loaded
-/**     (__current), so the pause menu can show its tag.
-/**
-/**  A note on the "@wrapMethod" / "@replaceMethod" prefixes:
-/**  these are "hooks" - they replace or wrap a game function. Thanks to
-/**  them we do not copy the whole game code, we only add our own part.
+/**  modSaveTags - hooks for saving and loading.
+/**  Tracks the current save (__current) and, before a save, remembers the
+/**  overwritten save's tag so it can be moved. Storage lives in modSaveTags.ws.
 /***********************************************************************/
 
 
-// =========================================================================
-//  SAVING THE GAME
-//
-//  Order of events when saving:
-//    1) executeSave()      - BEFORE saving; the game has not changed anything yet
-//    2) (the game writes the file)
-//    3) OnSaveCompleted()  - AFTER saving; but the game does NOT see the new file yet
-//    4) later: when the game refreshes the save list, SaveTags_TryMigrate()
-//       from modSaveTags.ws moves the tag to the new file.
-// =========================================================================
+// ===== SAVING =====
+// executeSave runs before saving, OnSaveCompleted after. The tag move itself
+// happens later in SaveTags_TryMigrate() (the new file is not visible here yet).
 
-// Step 1: runs right before the game saves.
-// We remember:
-//   __pending     - the tag of the save that is about to be overwritten,
-//   __pendingtype - the save type (quicksave/autosave/manual),
-//   __oldsave     - the file name of the save being overwritten,
-//   __snapshot    - the list of save files BEFORE saving.
-// This way we later know which file is new, and what to assign to it.
+// Before saving: remember the overwritten save's tag, type, file name and the
+// file list (keys __pending, __pendingtype, __oldsave, __snapshot).
 @wrapMethod(CR4IngameMenu)
 function executeSave(type : ESaveGameType, slot : int) : void
 {
@@ -75,10 +51,8 @@ function executeSave(type : ESaveGameType, slot : int) : void
 	wrappedMethod(type, slot);
 }
 
-// Step 3: runs after saving finishes.
-// On success we move NOTHING here (the game does not see the new file yet) -
-// SaveTags_TryMigrate() does that later. On failure we clear the remembered
-// data, because there is nothing to move.
+// After saving: on failure clear the remembered data (nothing to move).
+// On success we do nothing here - SaveTags_TryMigrate() moves the tag later.
 @wrapMethod(CR4Game)
 function OnSaveCompleted(type : ESaveGameType, succeeded : bool)
 {
@@ -106,23 +80,13 @@ function OnSaveCompleted(type : ESaveGameType, succeeded : bool)
 		SaveTags_CfgSet("__oldsave", "");
 		SaveTags_Flush();
 	}
-
-	// On success we do NOT move the tag here: at this moment the engine still
-	// does not see the new file on the list. That is done by
-	// SaveTags_TryMigrate() once the list is up to date (when the save list is
-	// built or on the next save).
 }
 
 
-// =========================================================================
-//  LOADING THE GAME - who is the "current" save?
-//
-//  The pause menu shows the tag of the current save, so we need to know
-//  which save the player has actually loaded. We store its file name in
-//  the settings under the key "__current".
-// =========================================================================
+// ===== LOADING (which save is current?) =====
+// Stored in the settings under "__current" so the pause menu can show its tag.
 
-// The player picked a specific save from the "Load game" list.
+// Player picked a save from the "Load game" list.
 @wrapMethod(CR4IngameMenu)
 function LoadSaveRequested(saveSlotRef : SSavegameInfo) : void
 {
@@ -132,8 +96,7 @@ function LoadSaveRequested(saveSlotRef : SSavegameInfo) : void
 	wrappedMethod(saveSlotRef);
 }
 
-// The "Continue" option loads the last save without giving a file name -
-// we take the newest one from the list.
+// "Continue": take the newest save.
 @wrapMethod(CR4IngameMenu)
 function LoadLastSave(allowModCheck : bool) : void
 {
@@ -150,7 +113,7 @@ function LoadLastSave(allowModCheck : bool) : void
 	wrappedMethod(allowModCheck);
 }
 
-// A new game does not have any save yet.
+// New game: no save yet.
 @wrapMethod(CR4IngameMenu)
 function NewGameRequested() : void
 {
