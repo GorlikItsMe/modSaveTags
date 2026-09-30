@@ -16,19 +16,32 @@ function SaveTags_DefaultNames() : string
 }
 
 // Splits the stored "A|B|C|" text into a clean list (skips empty entries).
+// StrSplitFirst is the vanilla way to cut a string: left = text before the
+// divider, right = the rest, false = no divider left.
 function SaveTags_ParseNames(raw : string) : array< string >
 {
-	var parts : array< string >;
-	var names : array< string >;
-	var i     : int;
+	var names     : array< string >;
+	var remaining : string;
+	var part      : string;
+	var rest      : string;
 
-	parts = StrSplit(raw, "|");
+	remaining = raw;
 
-	for (i = 0; i < parts.Size(); i += 1)
+	while (StrLen(remaining) > 0)
 	{
-		if (StrLen(parts[i]) > 0)
+		if (StrSplitFirst(remaining, "|", part, rest))
 		{
-			names.PushBack(parts[i]);
+			remaining = rest;
+		}
+		else
+		{
+			part      = remaining;
+			remaining = "";
+		}
+
+		if (StrLen(part) > 0)
+		{
+			names.PushBack(part);
 		}
 	}
 
