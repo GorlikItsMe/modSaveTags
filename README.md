@@ -55,14 +55,24 @@ names=Ania|Marek|Gość|
 
 ### Uwagi
 
-- Przy pierwszym użyciu mod sam utworzy wpis `names` z domyślnymi nazwami
-  (`Geralt|Yennefer|Triss|Jaskier|Ciri|`), więc edytujesz gotowy wpis.
+- Przy pierwszym użyciu mod sam utworzy wpis `names` z domyślnymi nazwami w
+  języku gry (`Geralt|Yennefer|Triss|Jaskier|Ciri|` po polsku,
+  `Geralt|Yennefer|Triss|Dandelion|Ciri|` po angielsku), więc edytujesz gotowy wpis.
 - Edytuj ten plik, którego używa Twoja gra — przy DX12 to `dx12user.settings`.
 - Rotacja zmienia tylko listę do wybierania. Tagi już przypisane do sejwów
   zostają stare, dopóki nie przełączysz ich w menu.
 - Przenoszenie tagu działa dla zapisów z menu „Zapisz grę". Dla szybkiego
   zapisu (`F5`) i autozapisu ustaw tag ponownie.
 - Informacja o tagu zapisu nie jest częścią zapisu. Jest zapisywana w pliku `dx12user.settings` lub `user.settings` czyli pliku z ustawieniami gry.
+
+## Języki
+
+Teksty moda (wpis w menu pauzy, komunikaty na HUD i domyślne nazwy w rotacji) nie
+są już zaszyte w kodzie — leżą w plikach tłumaczeń i mod pokazuje ten język, który
+ma ustawiony gracz. W paczce są **polski** i **angielski**; gdy brakuje pliku dla
+języka gracza, mod używa angielskiego i zapisuje o tym linię w logu. Dodanie
+języka to przetłumaczenie jednego pliku CSV — patrz
+[strings/README.md](strings/README.md).
 
 ## Pliki moda
 
@@ -71,6 +81,12 @@ names=Ania|Marek|Gość|
 | `modSaveTags.ws` | magazyn tagów i podmiana wierszy listy zapisów |
 | `modSaveTagsHooks.ws` | wykrywanie momentu zapisu i wczytania |
 | `modSaveTagsMenu.ws` | wpis w menu pauzy + lista nazw z configu |
+| `modSaveTagsLoc.ws` | teksty z tłumaczeń (`GetLocStringByKeyExt`) |
+
+Katalog `strings/` to źródła tłumaczeń (pliki CSV), a `content/*.w3strings` to
+gotowe teksty dla poszczególnych języków — szczegóły w
+[strings/README.md](strings/README.md). `tools/check-strings.py` pilnuje, żeby
+klucze w kodzie i w tłumaczeniach się nie rozjechały.
 
 ## Uwaga techniczna
 

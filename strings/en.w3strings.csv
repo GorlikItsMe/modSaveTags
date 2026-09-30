@@ -1,0 +1,19 @@
+;meta[language=en]
+; id      |key(hex)|key(str)| text
+;
+; modSaveTags - English text (source; built file: content/en.w3strings).
+; Edit only the "text" column (after the last '|'). Do not change ids or keys.
+; New language: copy this file to strings/<code>.w3strings.csv and change ;meta[language=xx].
+;
+; Note: the menu label is composed as  <mst_save_is> + " " + tag,
+; which is why no text below ends with a space.
+;
+2137135001||mst_save_none|Unnamed save
+2137135002||mst_save_is|Save:
+2137135003||mst_hud_no_save|No save is loaded - there is nothing to name.
+2137135004||mst_hud_none|Save without a name.
+2137135005||mst_name_1|Geralt
+2137135006||mst_name_2|Yennefer
+2137135007||mst_name_3|Triss
+2137135008||mst_name_4|Dandelion
+2137135009||mst_name_5|Ciri
