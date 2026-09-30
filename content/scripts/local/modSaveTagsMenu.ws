@@ -13,8 +13,8 @@
 /**
 /**  WHY A CYCLE INSTEAD OF TYPING TEXT?
 /**  On PC the game does not expose a text-input field to scripts, so
-/**  instead a click cycles through ready-made names. Any other tag can be
-/**  set with the tagsSet(...) command in the console (~).
+/**  instead a click cycles through ready-made names. To have any other tag,
+/**  just add it to the SaveTags_Names() list below.
 /**
 /**  The entry is visible only in game (pause menu), not in the main menu.
 /***********************************************************************/

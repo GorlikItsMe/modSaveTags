@@ -25,15 +25,6 @@
 /**    modSaveTags.ws          - this file: tag storage + save list
 /**    modSaveTagsHooks.ws     - hooks the save and load moments
 /**    modSaveTagsMenu.ws      - extra pause-menu entry (change the tag)
-/**    modSaveTagsCommands.ws  - console commands (~)
-/**
-/**  CONSOLE COMMANDS (~):
-/**    tagsList()                      show saves: number, type, file, tag
-/**    tagsSet(3, 'Kamil')             set tag on save number 3
-/**    tagsSetFile('53db9', 'Kamil')   set tag by a part of the file name
-/**    tagsClear(3)                    remove tag from save number 3
-/**    tagsClearAll()                  remove all tags
-/**    tagsHelp()                      print these commands on screen
 /**
 /**  NOTE: moving the tag works for saves made from the "Save game" menu.
 /**  Quicksave (F5) and autosave are handled natively by the game - set
@@ -129,15 +120,10 @@ function SaveTags_SetFile(file : string, owner : string)
 	SaveTags_Flush();
 }
 
-// Shortcuts that work on a save object (SSavegameInfo) instead of a file name.
+// Shortcut that works on a save object (SSavegameInfo) instead of a file name.
 function SaveTags_Get(save : SSavegameInfo) : string
 {
 	return SaveTags_GetFile(save.filename);
-}
-
-function SaveTags_Set(save : SSavegameInfo, owner : string)
-{
-	SaveTags_SetFile(save.filename, owner);
 }
 
 // Builds the text the player sees on the save list.
@@ -358,16 +344,8 @@ function IngameMenu_PopulateSaveDataForSlotType(flashStorageUtility : CScriptedF
 //  PART 4: HELPER FUNCTIONS
 // =========================================================================
 
-// Returns the list of all visible saves.
-function SaveTags_Saves() : array< SSavegameInfo >
-{
-	var saves : array< SSavegameInfo >;
-	theGame.ListSavedGames(saves, -1);
-	return saves;
-}
-
 // Prints a message both to the game log and on screen (HUD).
-// Handy in console commands - you see the result immediately.
+// Gives the player quick feedback, e.g. after changing a tag in the pause menu.
 function SaveTags_Say(text : string)
 {
 	var witcher : W3PlayerWitcher;
